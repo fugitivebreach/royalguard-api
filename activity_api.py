@@ -62,11 +62,22 @@ def health_check():
         }), 500
 
 @app.route('/update_activity', methods=['POST'])
-@require_api_key
 def update_activity():
     data = request.get_json()
     if not data or 'user_id' not in data or 'activity_minutes' not in data:
         return jsonify({'status': 'error', 'message': 'Invalid data'}), 400
+
+    # Check API key from request body (for Roblox compatibility)
+    api_key_from_body = data.get('api_key')
+    api_key_from_header = request.headers.get('X-API-Key')
+    
+    # Debug logging
+    print(f"API Key from body: {api_key_from_body}")
+    print(f"API Key from header: {api_key_from_header}")
+    print(f"Expected API Key: {API_KEY}")
+    
+    if not (api_key_from_body == API_KEY or api_key_from_header == API_KEY):
+        return jsonify({'status': 'error', 'message': 'Invalid or missing API key'}), 401
 
     user_id = data['user_id']
     activity_minutes = data['activity_minutes']
