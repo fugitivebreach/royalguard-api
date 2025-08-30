@@ -1,7 +1,8 @@
 from flask import Flask, request, jsonify
 from pymongo import MongoClient
-import os
 from decouple import config
+from datetime import datetime
+import os
 from functools import wraps
 
 app = Flask(__name__)
@@ -94,6 +95,42 @@ def update_activity():
         return jsonify({'status': 'success'}), 200
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/log_event', methods=['POST'])
+def log_event():
+    try:
+        # Get API key from headers or request body
+        api_key = request.headers.get('X-API-Key') or request.json.get('api_key')
+        
+        if not api_key or api_key != API_KEY:
+            print(f"DEBUG: Invalid API key provided: {api_key}")
+            return jsonify({'error': 'Invalid API key'}), 401
+        
+        data = request.json
+        log_type = data.get('log_type')
+        log_data = data.get('log_data')
+        timestamp = data.get('timestamp')
+        
+        if not log_type or not log_data:
+            return jsonify({'error': 'Missing log_type or log_data'}), 400
+        
+        # Store log in database for Discord bot to process
+        log_entry = {
+            'log_type': log_type,
+            'log_data': log_data,
+            'timestamp': timestamp,
+            'processed': False,
+            'created_at': datetime.utcnow()
+        }
+        
+        db.roblox_logs.insert_one(log_entry)
+        print(f"DEBUG: Stored {log_type} log for processing")
+        
+        return jsonify({'success': True, 'message': 'Log stored for processing'})
+    
+    except Exception as e:
+        print(f"ERROR in log_event: {str(e)}")
+        return jsonify({'error': 'Internal server error'}), 500
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
