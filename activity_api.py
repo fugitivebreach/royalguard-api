@@ -114,20 +114,13 @@ def log_event():
         if not log_type or not log_data:
             return jsonify({'error': 'Missing log_type or log_data'}), 400
         
-        # Check for duplicate logs before inserting
-        existing_log = db.roblox_logs.find_one({
-            'log_type': log_type,
-            'log_data.message': log_data.get('message'),
-            'log_data.username': log_data.get('username'),
-            'timestamp': timestamp
-        })
-        
-        if existing_log:
-            print(f"DEBUG: Duplicate log detected, skipping insertion for {log_type}")
-            return jsonify({'success': True, 'message': 'Duplicate log ignored'})
+        # Create unique hash for deduplication
+        import hashlib
+        log_hash = hashlib.md5(f"{log_type}_{log_data.get('username', '')}_{log_data.get('message', '')}_{timestamp}".encode()).hexdigest()
         
         # Store log in database for Discord bot to process
         log_entry = {
+            '_id': log_hash,  # Use hash as unique ID
             'log_type': log_type,
             'log_data': log_data,
             'timestamp': timestamp,
@@ -135,7 +128,14 @@ def log_event():
             'created_at': datetime.utcnow()
         }
         
-        db.roblox_logs.insert_one(log_entry)
+        try:
+            db.roblox_logs.insert_one(log_entry)
+        except Exception as e:
+            if "duplicate key" in str(e).lower():
+                print(f"DEBUG: Duplicate log ignored for {log_type} - {log_data.get('username', 'unknown')}")
+                return jsonify({'success': True, 'message': 'Duplicate log ignored'})
+            else:
+                raise e
         print(f"DEBUG: Stored {log_type} log for processing")
         
         return jsonify({'success': True, 'message': 'Log stored for processing'})
