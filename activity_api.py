@@ -114,9 +114,9 @@ def log_event():
         if not log_type or not log_data:
             return jsonify({'error': 'Missing log_type or log_data'}), 400
         
-        # Create unique hash for deduplication
+        # Create unique hash for deduplication (exclude timestamp for better deduplication)
         import hashlib
-        log_hash = hashlib.md5(f"{log_type}_{log_data.get('username', '')}_{log_data.get('message', '')}_{timestamp}".encode()).hexdigest()
+        log_hash = hashlib.md5(f"{log_type}_{log_data.get('player_name', '')}_{log_data.get('message', '')}".encode()).hexdigest()
         
         # Store log in database for Discord bot to process
         log_entry = {
