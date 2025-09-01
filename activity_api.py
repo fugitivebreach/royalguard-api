@@ -114,6 +114,18 @@ def log_event():
         if not log_type or not log_data:
             return jsonify({'error': 'Missing log_type or log_data'}), 400
         
+        # Check for duplicate logs before inserting
+        existing_log = db.roblox_logs.find_one({
+            'log_type': log_type,
+            'log_data.message': log_data.get('message'),
+            'log_data.username': log_data.get('username'),
+            'timestamp': timestamp
+        })
+        
+        if existing_log:
+            print(f"DEBUG: Duplicate log detected, skipping insertion for {log_type}")
+            return jsonify({'success': True, 'message': 'Duplicate log ignored'})
+        
         # Store log in database for Discord bot to process
         log_entry = {
             'log_type': log_type,
